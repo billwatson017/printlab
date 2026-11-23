@@ -18,6 +18,8 @@ The user describes an object; you turn it into a parametric model in `models/<ke
 - Each `Part` is one colour. Parts must not overlap — subtract the inlay from the base (see the coaster). Max 4 distinct colours.
 - Use the `CrossSection` 2D API + `Manifold.extrude` / `revolve` for profiles; `Manifold.hull` for rounded blocks; `cylinder(h, r, r, 0, true)` for centred cylinders. Manifold types: `node_modules/manifold-3d/manifold-encapsulated-types.d.ts`.
 - Text: `build(m, p, kit)` → `kit.text('Hi', { size: 12 })` returns a centred `CrossSection` (size = capital height, mm). Use a `{ type: 'text', value: '...' }` param so it's editable in the viewer. Don't commit people's real names (the repo is public) — use a placeholder and let them type it.
+- Organic shapes (figures, animals): hull spheres into blobs (`Manifold.hull`), union the blobs, cut the bottom flat at z = 0. See `models/kaiju.ts`. Wrap each returned part in `clean(m, shape)` to drop zero-volume slivers.
+- Check the result visually: `http://localhost:5190/?view=side#<name>` (views: iso, top, front, side).
 - Put `printNotes` on every model: material, supports yes/no, slicer tips.
 
 ## Design rules (0.4 mm nozzle) — `DESIGN_RULES` in `src/lib/printer.ts`

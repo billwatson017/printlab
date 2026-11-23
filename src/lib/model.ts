@@ -58,3 +58,9 @@ export function defineModel<P extends Record<string, Param>>(def: ModelDef<P>): 
 export function defaults<P extends Record<string, Param>>(params: P): ParamValues<P> {
   return Object.fromEntries(Object.entries(params).map(([k, v]) => [k, v.value])) as ParamValues<P>;
 }
+
+/** Drop zero-volume slivers and crumbs (< minVolume mm³) that booleans can leave behind. */
+export function clean(m: ManifoldToplevel, shape: Manifold, minVolume = 1): Manifold {
+  const keep = shape.decompose().filter((x) => x.volume() >= minVolume);
+  return keep.length ? m.Manifold.compose(keep) : shape;
+}

@@ -54,6 +54,13 @@ export function check(parts: Part[]): Report {
     }
   }
 
+  // Everything should be one connected object, or bits will print loose / fall over.
+  if (parts.length) {
+    const merged = parts.slice(1).reduce((a, p) => a.add(p.shape), parts[0].shape);
+    const pieces = merged.decompose().filter((x) => Math.abs(x.volume()) > 1).length;
+    if (pieces > 1) warnings.push(`Model is ${pieces} separate pieces — check nothing is floating or detached`);
+  }
+
   const volumeCm3 = volume / 1000;
   return { size, min, max, volumeCm3, solidGrams: volumeCm3 * PLA_DENSITY, triangles, issues, warnings };
 }

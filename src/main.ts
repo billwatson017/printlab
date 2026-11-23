@@ -282,7 +282,7 @@ async function select(id: string, { keepCamera = false } = {}) {
   if (keepCamera && saved) {
     camera.position.fromArray(saved.p);
     controls.target.fromArray(saved.t);
-  } else frame();
+  } else frame((new URLSearchParams(location.search).get('view') as 'iso' | null) ?? 'iso');
   store.set('model', id);
 }
 

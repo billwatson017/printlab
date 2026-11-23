@@ -1,0 +1,25 @@
+{
+  "name": "printlab",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Describe a 3D model, see it in the browser, print it on an Anycubic Kobra X.",
+  "scripts": {
+    "dev": "vite",
+    "check": "tsx scripts/check.ts",
+    "export": "tsx scripts/export.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "fflate": "^0.8.3",
+    "manifold-3d": "^3.5.5",
+    "three": "^0.187.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.6",
+    "@types/three": "^0.187.0",
+    "tsx": "^4.23.15",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.8"
+  }
+}

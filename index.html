@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>printlab</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <aside id="models">
+      <header><strong>printlab</strong><span>Kobra X · 260³ mm</span></header>
+      <nav id="model-list"></nav>
+    </aside>
+    <main>
+      <canvas id="view"></canvas>
+      <div id="toolbar">
+        <button data-view="iso" title="Isometric">Iso</button>
+        <button data-view="top" title="Top">Top</button>
+        <button data-view="front" title="Front">Front</button>
+        <button data-view="side" title="Side">Side</button>
+        <label><input type="checkbox" id="xray" /> X-ray</label>
+        <label><input type="checkbox" id="volume" checked /> Build volume</label>
+      </div>
+      <div id="error" hidden></div>
+    </main>
+    <aside id="panel">
+      <h1 id="title"></h1>
+      <p id="description"></p>
+      <section><h2>Size</h2><dl id="stats"></dl><ul id="checks"></ul></section>
+      <section id="params-section"><h2>Parameters</h2><div id="params"></div><button id="reset" class="ghost">Reset</button></section>
+      <section><h2>Parts</h2><ul id="parts"></ul></section>
+      <section><h2>Print</h2><p id="notes"></p><div id="downloads"></div></section>
+    </aside>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

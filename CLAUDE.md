@@ -20,7 +20,8 @@ The user describes an object; you turn it into a parametric model in `models/<ke
 - Text: `build(m, p, kit)` → `kit.text('Hi', { size: 12 })` returns a centred `CrossSection` (size = capital height, mm). Use a `{ type: 'text', value: '...' }` param so it's editable in the viewer. Don't commit people's real names (the repo is public) — use a placeholder and let them type it.
 - Organic shapes (figures, animals): hull spheres into blobs (`Manifold.hull`), union the blobs, cut the bottom flat at z = 0. See `models/kaiju.ts`. Wrap each returned part in `clean(m, shape)` to drop zero-volume slivers.
 - Realistic / textured sculpts: use the SDF toolkit in `src/lib/sdf.ts` (blended spheres/ellipsoids/tapered capsules, `slab` for fins/plates, `cellular` + `noise` for skin texture, `accelerate` + `sdfToManifold` to mesh). See `models/kaiju-realistic.ts`. Keep texture relief ≥ 0.4 mm deep and ≥ 1.6 mm across or the nozzle can't reproduce it. Keep the build ≲ 6 s at default detail (`time npm run check <name>`).
-- Check the result visually: `http://localhost:5190/?view=side#<name>` (views: iso, top, front, side).
+- Check the result visually: `http://localhost:5190/?view=side#<name>` (views: iso, top, front, side). Close-ups: `?view=iso&zoom=4&target=x,y,z` (mm). Screenshot headless with Chrome `--headless=new --use-angle=swiftshader --enable-unsafe-swiftshader --virtual-time-budget=90000 --screenshot=... <url>` and look at front, side and a close-up before calling a model done.
+- For SDF sculpts, place details (eyes, teeth) by marching to the actual surface rather than guessing coordinates — guesses end up buried or floating. Watch the "separate pieces" warning.
 - Put `printNotes` on every model: material, supports yes/no, slicer tips.
 
 ## Design rules (0.4 mm nozzle) — `DESIGN_RULES` in `src/lib/printer.ts`
@@ -35,6 +36,7 @@ The user describes an object; you turn it into a parametric model in `models/<ke
 ## Repo layout
 
 - `models/` — one file per model (default export `defineModel({...})`)
+- `models/local/` — git-ignored personal models (e.g. fan art of trademarked characters, real names). Never move these into `models/`.
 - `src/lib/` — kernel loader, model types, printer profile, checks, STL/3MF export (shared by browser + Node)
 - `src/main.ts` — three.js viewer
 - `scripts/` — `check` and `export` CLIs (Node, via tsx)

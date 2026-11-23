@@ -235,6 +235,73 @@ export function accelerate(coarse: Sdf, fine: Sdf, b: Bounds, cell: number, band
 }
 
 /** Mesh an SDF (negative inside) with Manifold's marching tetrahedra. */
-export function sdfToManifold(m: ManifoldToplevel, sdf: Sdf, bounds: Bounds, edgeLength: number): Manifold {
-  return m.Manifold.levelSet((p) => -sdf(p[0], p[1], p[2]), bounds, edgeLength);
+export function sdfToManifold(m: ManifoldToplevel, sdf: Sdf, bounds: Bounds, edgeLength: number, tolerance = -1): Manifold {
+  // tolerance > 0 snaps vertices onto the true surface (crisper thin edges, a few more evaluations).
+  return m.Manifold.levelSet((p) => -sdf(p[0], p[1], p[2]), bounds, edgeLength, 0, tolerance);
+}
+
+/** Ellipsoid with arbitrary orientation: radii along the (orthonormal) axes X, Y, Z. */
+export function orientedEllipsoid(c: V3, X: V3, Y: V3, Z: V3, radii: V3): Prim {
+  const [cx, cy, cz] = c;
+  const [a, b, e] = radii;
+  const rmin = Math.min(a, b, e);
+  return {
+    cx, cy, cz, r: Math.max(a, b, e),
+    f: (x, y, z) => {
+      const px = x - cx, py = y - cy, pz = z - cz;
+      const u = (px * X[0] + py * X[1] + pz * X[2]) / a;
+      const v = (px * Y[0] + py * Y[1] + pz * Y[2]) / b;
+      const w = (px * Z[0] + py * Z[1] + pz * Z[2]) / e;
+      return (Math.sqrt(u * u + v * v + w * w) - 1) * rmin;
+    },
+  };
+}
+
+/** Rotate v about a unit axis by `deg` degrees (Rodrigues). */
+export function rotateAbout(v: V3, axis: V3, deg: number): V3 {
+  const k = norm(axis), t = (deg * Math.PI) / 180, c = Math.cos(t), s = Math.sin(t);
+  const kv = cross(k, v), kd = dot(k, v);
+  return [v[0] * c + kv[0] * s + k[0] * kd * (1 - c), v[1] * c + kv[1] * s + k[1] * kd * (1 - c), v[2] * c + kv[2] * s + k[2] * kd * (1 - c)];
+}
+
+// ---------- gradient (Perlin) noise: smoother and more organic than value noise ----------
+const GRAD = [1, 1, 0, -1, 1, 0, 1, -1, 0, -1, -1, 0, 1, 0, 1, -1, 0, 1, 1, 0, -1, -1, 0, -1, 0, 1, 1, 0, -1, 1, 0, 1, -1, 0, -1, -1];
+function grad(ix: number, iy: number, iz: number, x: number, y: number, z: number, seed: number) {
+  let h = Math.imul(ix, 0x27d4eb2d) ^ Math.imul(iy, 0x165667b1) ^ Math.imul(iz, 0x9e3779b1) ^ seed;
+  h = Math.imul(h ^ (h >>> 15), 0x85ebca6b);
+  h ^= h >>> 13;
+  const g = ((h >>> 0) % 12) * 3;
+  return GRAD[g] * x + GRAD[g + 1] * y + GRAD[g + 2] * z;
+}
+/** Perlin noise, roughly in [-1, 1]. */
+export function perlin(x: number, y: number, z: number, seed = 3) {
+  const ix = Math.floor(x), iy = Math.floor(y), iz = Math.floor(z);
+  const fx = x - ix, fy = y - iy, fz = z - iz;
+  const u = fx * fx * fx * (fx * (fx * 6 - 15) + 10);
+  const v = fy * fy * fy * (fy * (fy * 6 - 15) + 10);
+  const w = fz * fz * fz * (fz * (fz * 6 - 15) + 10);
+  const l = (a: number, b: number, t: number) => a + (b - a) * t;
+  return l(
+    l(l(grad(ix, iy, iz, fx, fy, fz, seed), grad(ix + 1, iy, iz, fx - 1, fy, fz, seed), u),
+      l(grad(ix, iy + 1, iz, fx, fy - 1, fz, seed), grad(ix + 1, iy + 1, iz, fx - 1, fy - 1, fz, seed), u), v),
+    l(l(grad(ix, iy, iz + 1, fx, fy, fz - 1, seed), grad(ix + 1, iy, iz + 1, fx - 1, fy, fz - 1, seed), u),
+      l(grad(ix, iy + 1, iz + 1, fx, fy - 1, fz - 1, seed), grad(ix + 1, iy + 1, iz + 1, fx - 1, fy - 1, fz - 1, seed), u), v),
+    w,
+  ) * 1.4;
+}
+
+/**
+ * Ridged multifractal: sharp crests where the noise crosses zero, like wrinkled,
+ * knotted hide or bark. Returns ~[0, 1], 1 on the ridges.
+ */
+export function ridged(x: number, y: number, z: number, octaves = 3, seed = 5) {
+  let sum = 0, amp = 0.6, freq = 1, norm = 0;
+  for (let o = 0; o < octaves; o++) {
+    const n = 1 - Math.abs(perlin(x * freq, y * freq, z * freq, seed + o * 17));
+    sum += n * n * amp;
+    norm += amp;
+    amp *= 0.5;
+    freq *= 2.03;
+  }
+  return sum / norm;
 }

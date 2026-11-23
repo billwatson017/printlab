@@ -9,12 +9,24 @@ import { defaults, type ModelDef, type Part } from '../src/lib/model';
 const require = createRequire(import.meta.url);
 const MODELS_DIR = resolve(import.meta.dirname, '../models');
 
+const LOCAL_DIR = join(MODELS_DIR, 'local'); // git-ignored personal models
+
+function files(dir: string): string[] {
+  try { return readdirSync(dir).filter((f) => f.endsWith('.ts')).map((f) => join(dir, f)); } catch { return []; }
+}
+
+function modelPaths(): Map<string, string> {
+  return new Map([...files(MODELS_DIR), ...files(LOCAL_DIR)].map((f) => [basename(f, '.ts'), f]));
+}
+
 export function modelIds(): string[] {
-  return readdirSync(MODELS_DIR).filter((f) => f.endsWith('.ts')).map((f) => basename(f, '.ts')).sort();
+  return [...modelPaths().keys()].sort();
 }
 
 export async function buildModel(id: string): Promise<{ def: ModelDef; parts: Part[] }> {
-  const mod = await import(pathToFileURL(join(MODELS_DIR, `${id}.ts`)).href);
+  const path = modelPaths().get(id);
+  if (!path) throw new Error(`No model "${id}"`);
+  const mod = await import(pathToFileURL(path).href);
   const def: ModelDef = mod.default;
   if (!def?.build) throw new Error(`models/${id}.ts must default-export defineModel({...})`);
   const { m, kit } = await prepare(async (_name, spec) => {

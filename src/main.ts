@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { check, fmt } from './lib/check';
 import { to3MF, toSTL, triangles } from './lib/export';
@@ -14,7 +15,8 @@ const ready = () => prepare(async (name) => (await fetch(fontUrls[name])).arrayB
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
 // ---------- models ----------
-const modules = import.meta.glob<{ default: ModelDef }>('../models/*.ts');
+// models/local/ is git-ignored: personal models that shouldn't be published.
+const modules = import.meta.glob<{ default: ModelDef }>(['../models/*.ts', '../models/local/*.ts']);
 const ids = Object.keys(modules).map((p) => p.match(/([^/]+)\.ts$/)![1]).sort();
 const loaders = Object.fromEntries(Object.entries(modules).map(([p, l]) => [p.match(/([^/]+)\.ts$/)![1], l]));
 
@@ -40,13 +42,17 @@ camera.up.set(0, 0, 1);
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 
-scene.add(new THREE.HemisphereLight('#ffffff', '#30343c', 1.6));
-const sun = new THREE.DirectionalLight('#ffffff', 1.8);
-sun.position.set(150, -200, 300);
-scene.add(sun);
-const fill = new THREE.DirectionalLight('#ffffff', 0.5);
-fill.position.set(-200, 150, 100);
-scene.add(fill);
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+const pmrem = new THREE.PMREMGenerator(renderer);
+scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+scene.environmentIntensity = 0.45;
+const key = new THREE.DirectionalLight('#fff4e6', 2.4); // warm key, upper front-left: shows relief
+key.position.set(-160, -220, 320);
+scene.add(key);
+const rim = new THREE.DirectionalLight('#cfe3ff', 1.6); // cool rim from behind: separates silhouette
+rim.position.set(180, 260, 200);
+scene.add(rim);
+scene.add(new THREE.HemisphereLight('#ffffff', '#30343c', 0.35));
 
 const { x: BX, y: BY, z: BZ } = KOBRA_X.bed;
 const bed = new THREE.Mesh(new THREE.PlaneGeometry(BX, BY), new THREE.MeshStandardMaterial({ color: '#2a2f38', roughness: 0.9 }));
@@ -88,7 +94,14 @@ let bounds = new THREE.Box3(new THREE.Vector3(-50, -50, 0), new THREE.Vector3(50
 function frame(view: 'iso' | 'top' | 'front' | 'side' = 'iso') {
   const center = bounds.getCenter(new THREE.Vector3());
   const radius = Math.max(bounds.getSize(new THREE.Vector3()).length() / 2, 20);
-  const dist = radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2)) * 1.1;
+  // ?zoom=3&tz=0.85 → close-up at 85% of the model's height (handy for screenshots).
+  const q = new URLSearchParams(location.search);
+  const zoom = Number(q.get('zoom') ?? 1) || 1;
+  if (q.has('tz')) center.z = bounds.min.z + (bounds.max.z - bounds.min.z) * Number(q.get('tz'));
+  // ?target=x,y,z (mm) → look at that point, e.g. a head close-up.
+  const tgt = q.get('target')?.split(',').map(Number);
+  if (tgt?.length === 3 && tgt.every(Number.isFinite)) center.set(tgt[0], tgt[1], tgt[2]);
+  const dist = (radius / Math.sin(THREE.MathUtils.degToRad(camera.fov / 2))) * 1.1 / zoom;
   const dir = {
     iso: new THREE.Vector3(1, -1.4, 1),
     top: new THREE.Vector3(0, -0.0001, 1),
@@ -156,17 +169,20 @@ function drawParts(parts: Part[]) {
     const mesh = new THREE.Mesh(
       geom,
       new THREE.MeshStandardMaterial({
-        color: part.color, roughness: 0.55, metalness: 0.05,
+        color: part.color, roughness: 0.62, metalness: 0.05,
         transparent: xray, opacity: xray ? 0.35 : 1, depthWrite: !xray, side: THREE.DoubleSide,
       }),
     );
-    const edges = new THREE.LineSegments(
-      new THREE.EdgesGeometry(geom, 30),
-      new THREE.LineBasicMaterial({ color: new THREE.Color(part.color).multiplyScalar(0.45) }),
-    );
     const g = new THREE.Group();
     g.name = part.name;
-    g.add(mesh, edges);
+    g.add(mesh);
+    // Crease lines help read simple CAD shapes but look like dirt on dense sculpted meshes.
+    if (indices.length / 3 < 100_000) {
+      g.add(new THREE.LineSegments(
+        new THREE.EdgesGeometry(geom, 30),
+        new THREE.LineBasicMaterial({ color: new THREE.Color(part.color).multiplyScalar(0.45) }),
+      ));
+    }
     modelGroup.add(g);
     geom.computeBoundingBox();
     bounds.union(geom.boundingBox!);

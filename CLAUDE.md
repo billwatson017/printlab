@@ -19,6 +19,7 @@ The user describes an object; you turn it into a parametric model in `models/<ke
 - Use the `CrossSection` 2D API + `Manifold.extrude` / `revolve` for profiles; `Manifold.hull` for rounded blocks; `cylinder(h, r, r, 0, true)` for centred cylinders. Manifold types: `node_modules/manifold-3d/manifold-encapsulated-types.d.ts`.
 - Text: `build(m, p, kit)` → `kit.text('Hi', { size: 12 })` returns a centred `CrossSection` (size = capital height, mm). Use a `{ type: 'text', value: '...' }` param so it's editable in the viewer. Don't commit people's real names (the repo is public) — use a placeholder and let them type it.
 - Organic shapes (figures, animals): hull spheres into blobs (`Manifold.hull`), union the blobs, cut the bottom flat at z = 0. See `models/kaiju.ts`. Wrap each returned part in `clean(m, shape)` to drop zero-volume slivers.
+- Realistic / textured sculpts: use the SDF toolkit in `src/lib/sdf.ts` (blended spheres/ellipsoids/tapered capsules, `slab` for fins/plates, `cellular` + `noise` for skin texture, `accelerate` + `sdfToManifold` to mesh). See `models/kaiju-realistic.ts`. Keep texture relief ≥ 0.4 mm deep and ≥ 1.6 mm across or the nozzle can't reproduce it. Keep the build ≲ 6 s at default detail (`time npm run check <name>`).
 - Check the result visually: `http://localhost:5190/?view=side#<name>` (views: iso, top, front, side).
 - Put `printNotes` on every model: material, supports yes/no, slicer tips.
 

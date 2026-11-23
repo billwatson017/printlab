@@ -1,12 +1,23 @@
-import type { Manifold, ManifoldToplevel } from 'manifold-3d';
+import type { CrossSection, Manifold, ManifoldToplevel } from 'manifold-3d';
+import type { TextOptions } from './text';
 
-export interface Param {
+export interface NumberParam {
+  type?: 'number';
   value: number;
   min: number;
   max: number;
   step?: number;
   label?: string;
 }
+
+export interface TextParam {
+  type: 'text';
+  value: string;
+  maxLength?: number;
+  label?: string;
+}
+
+export type Param = NumberParam | TextParam;
 
 export interface Part {
   /** Shown in the viewer and used as the object name in the 3MF. */
@@ -16,7 +27,15 @@ export interface Part {
   shape: Manifold;
 }
 
-export type ParamValues<P extends Record<string, Param>> = { [K in keyof P]: number };
+export type ParamValues<P extends Record<string, Param>> = {
+  [K in keyof P]: P[K] extends TextParam ? string : number;
+};
+
+/** Extra helpers passed to every model's build(). */
+export interface Toolkit {
+  /** Text → CrossSection, see src/lib/text.ts. */
+  text: (str: string, opts: TextOptions) => CrossSection;
+}
 
 export interface ModelDef<P extends Record<string, Param> = Record<string, Param>> {
   title: string;
@@ -28,7 +47,7 @@ export interface ModelDef<P extends Record<string, Param> = Record<string, Param
    * Build the model. Conventions: Z is up, units are mm, the model sits on z = 0
    * and is centred on x = 0, y = 0 (the middle of the bed).
    */
-  build: (m: ManifoldToplevel, p: ParamValues<P>) => Part[];
+  build: (m: ManifoldToplevel, p: ParamValues<P>, kit: Toolkit) => Part[];
 }
 
 /** Identity helper that gives model files full type inference. */

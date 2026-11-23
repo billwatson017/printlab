@@ -3,9 +3,13 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { toCreasedNormals } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import { check, fmt } from './lib/check';
 import { to3MF, toSTL, triangles } from './lib/export';
-import { getKernel } from './lib/kernel';
+import { prepare } from './lib/kernel';
+import roundedFont from '@fontsource/fredoka/files/fredoka-latin-700-normal.woff?url';
 import { defaults, type ModelDef, type Part } from './lib/model';
 import { KOBRA_X } from './lib/printer';
+
+const fontUrls: Record<string, string> = { rounded: roundedFont };
+const ready = () => prepare(async (name) => (await fetch(fontUrls[name])).arrayBuffer());
 
 const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -15,6 +19,8 @@ const ids = Object.keys(modules).map((p) => p.match(/([^/]+)\.ts$/)![1]).sort();
 const loaders = Object.fromEntries(Object.entries(modules).map(([p, l]) => [p.match(/([^/]+)\.ts$/)![1], l]));
 
 // Session state survives the full reload Vite does when a model file is edited.
+type Params = Record<string, number | string>;
+
 const store = {
   get<T>(k: string): T | undefined {
     try { const v = sessionStorage.getItem(k); return v ? JSON.parse(v) : undefined; } catch { return undefined; }
@@ -76,7 +82,7 @@ renderer.setAnimationLoop(() => {
 controls.addEventListener('end', () => store.set('camera', { p: camera.position.toArray(), t: controls.target.toArray() }));
 
 // ---------- state ----------
-let current: { id: string; def: ModelDef; params: Record<string, number>; parts: Part[] } | undefined;
+let current: { id: string; def: ModelDef; params: Params; parts: Part[] } | undefined;
 let bounds = new THREE.Box3(new THREE.Vector3(-50, -50, 0), new THREE.Vector3(50, 50, 50));
 
 function frame(view: 'iso' | 'top' | 'front' | 'side' = 'iso') {
@@ -112,10 +118,10 @@ function download(name: string, data: Uint8Array, type: string) {
 function rebuild() {
   if (!current) return;
   const { def, params } = current;
-  getKernel().then((m) => {
+  ready().then(({ m, kit }) => {
     let parts: Part[];
     try {
-      parts = def.build(m, params as never);
+      parts = def.build(m, params as never, kit);
       showError(null);
     } catch (e) {
       showError(e);
@@ -209,14 +215,29 @@ function renderInfo(parts: Part[]) {
   else for (const p of parts) btn(`${p.name}.stl`, false, () => download(`${id}--${p.name.toLowerCase().replace(/\W+/g, '-')}.stl`, toSTL([p.shape]), 'model/stl'));
 }
 
-function renderParams(def: ModelDef, params: Record<string, number>) {
+function renderParams(def: ModelDef, params: Params) {
   const box = $('params');
   box.innerHTML = '';
   $('params-section').hidden = Object.keys(def.params).length === 0;
   let pending = 0;
+  const changed = (key: string, v: number | string) => {
+    params[key] = v;
+    store.set(`params:${current!.id}`, params);
+    cancelAnimationFrame(pending);
+    pending = requestAnimationFrame(rebuild);
+  };
   for (const [key, spec] of Object.entries(def.params)) {
     const wrap = document.createElement('div');
     wrap.className = 'param';
+    if (spec.type === 'text') {
+      wrap.innerHTML = `<label for="p-${key}">${spec.label ?? key}</label><input id="p-${key}" type="text" class="text" />`;
+      const input = wrap.querySelector('input')!;
+      input.value = String(params[key]);
+      if (spec.maxLength) input.maxLength = spec.maxLength;
+      input.addEventListener('input', () => changed(key, input.value));
+      box.append(wrap);
+      continue;
+    }
     const step = spec.step ?? 1;
     wrap.innerHTML = `<label for="p-${key}">${spec.label ?? key}</label>
       <input id="p-${key}" type="range" min="${spec.min}" max="${spec.max}" step="${step}" value="${params[key]}" />
@@ -224,11 +245,8 @@ function renderParams(def: ModelDef, params: Record<string, number>) {
     const [range, num] = wrap.querySelectorAll('input');
     const set = (v: number) => {
       if (!Number.isFinite(v)) return;
-      params[key] = v;
       range.value = num.value = String(v);
-      store.set(`params:${current!.id}`, params);
-      cancelAnimationFrame(pending);
-      pending = requestAnimationFrame(rebuild);
+      changed(key, v);
     };
     range.addEventListener('input', () => set(Number(range.value)));
     num.addEventListener('change', () => set(Number(num.value)));
@@ -251,7 +269,7 @@ async function select(id: string, { keepCamera = false } = {}) {
     showError(e);
     return;
   }
-  const params = { ...defaults(def.params), ...store.get<Record<string, number>>(`params:${id}`) };
+  const params = { ...defaults(def.params), ...store.get<Params>(`params:${id}`) };
   for (const k of Object.keys(params)) if (!(k in def.params)) delete params[k];
   current = { id, def, params, parts: [] };
   $('title').textContent = def.title;
@@ -259,7 +277,7 @@ async function select(id: string, { keepCamera = false } = {}) {
   $('notes').textContent = def.printNotes ?? '';
   renderParams(def, params);
   rebuild();
-  await getKernel();
+  await ready();
   const saved = store.get<{ p: number[]; t: number[] }>('camera');
   if (keepCamera && saved) {
     camera.position.fromArray(saved.p);

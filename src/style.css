@@ -48,3 +48,5 @@ ul { list-style: none; margin: 0; padding: 0; }
   body { grid-template-columns: 1fr; grid-template-rows: auto 55vh auto; overflow: auto; height: auto; }
   #models nav { display: flex; overflow-x: auto; }
 }
+.param input.text { grid-column: 1 / -1; background: #0f1115; color: var(--text); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; font: inherit; font-size: 15px; }
+.param input.text:focus { outline: none; border-color: var(--accent); }

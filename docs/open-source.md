@@ -8,13 +8,15 @@
 | [three.js](https://threejs.org) (MIT) | Browser viewer. |
 | [fflate](https://github.com/101arrowz/fflate) (MIT) | Zipping 3MF files. |
 | [Vite](https://vite.dev) (MIT) | Dev server; reloads the viewer when a model file is saved. |
+| [opentype.js](https://github.com/opentypejs/opentype.js) (MIT) | Text → outlines → `CrossSection`, via `kit.text()` in models. |
+| [Fredoka](https://fontsource.org/fonts/fredoka) via `@fontsource/fredoka` (SIL OFL 1.1) | Rounded bold font that prints cleanly at small sizes. |
 
 ## Worth adding next
 
 | Project | Why |
 |---|---|
 | [OrcaSlicer CLI](https://www.orcaslicer.com/wiki/cli/cli_mode) (AGPL-3.0) | Headless slicing (`orca-slicer --slice 0 --load-settings ... model.3mf`). Would let `npm run slice` produce G-code with real print time and filament use, using the Kobra X profile. Flags differ between versions — check `--help`. |
-| [opentype.js](https://github.com/opentypejs/opentype.js) (MIT) or [`@manifold-studio/typeface`](https://www.npmjs.com/package/@manifold-studio/typeface) | Text → outlines → `CrossSection` → extrude. Needed for name tags, labels, embossed text. |
+
 | [ManifoldCAD](https://manifoldcad.org/docs/jsuser/) | Manifold's own browser editor and helper library — good reference for idioms (smooth/refine, warp, hulls). |
 | [BOSL2](https://github.com/BelfrySCAD/BOSL2) (BSD-2) | The best OpenSCAD library for threads, gears, hinges, rounding. We can't call it directly, but its algorithms are a good reference to port. |
 | [grunna/ha-anycubic-kobra-x-lan](https://github.com/grunna/ha-anycubic-kobra-x-lan) | Reverse-engineered LAN MQTT protocol for the Kobra X — a path to "send to printer" from this app. |

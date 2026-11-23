@@ -1,9 +1,12 @@
 import { readdirSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { getKernel } from '../src/lib/kernel';
+import { readFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { prepare } from '../src/lib/kernel';
 import { defaults, type ModelDef, type Part } from '../src/lib/model';
 
+const require = createRequire(import.meta.url);
 const MODELS_DIR = resolve(import.meta.dirname, '../models');
 
 export function modelIds(): string[] {
@@ -14,8 +17,11 @@ export async function buildModel(id: string): Promise<{ def: ModelDef; parts: Pa
   const mod = await import(pathToFileURL(join(MODELS_DIR, `${id}.ts`)).href);
   const def: ModelDef = mod.default;
   if (!def?.build) throw new Error(`models/${id}.ts must default-export defineModel({...})`);
-  const m = await getKernel();
-  return { def, parts: def.build(m, defaults(def.params)) };
+  const { m, kit } = await prepare(async (_name, spec) => {
+    const buf = await readFile(require.resolve(spec));
+    return buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
+  });
+  return { def, parts: def.build(m, defaults(def.params), kit) };
 }
 
 /** Model ids from argv, or all of them. */
